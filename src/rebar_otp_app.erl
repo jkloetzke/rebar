@@ -27,7 +27,8 @@
 -module(rebar_otp_app).
 
 -export([compile/2,
-         clean/2]).
+         clean/2,
+         install/2]).
 
 -include("rebar.hrl").
 
@@ -80,6 +81,29 @@ clean(_Config, File) ->
             end;
         false ->
             ok
+    end.
+
+
+install(Config, File) ->
+    AppFile = case rebar_app_utils:is_app_src(File) of
+        true -> rebar_app_utils:app_src_to_app(File);
+        false -> File
+    end,
+    LibDir = rebar_config:get_global(Config, target,
+        filename:join(code:root_dir(), "lib")),
+
+    %% Load the app file and validate it.
+    case rebar_app_utils:load_app_file(Config, AppFile) of
+        {ok, Config1, AppName, AppData} ->
+            {vsn, Vsn} = lists:keyfind(vsn, 1, AppData),
+            TargetDir = filename:join(LibDir, atom_to_list(AppName) ++ "-" ++ Vsn),
+            ok = mk_target_dir(Config1, TargetDir),
+            ok = copy_sub_dir(TargetDir, "ebin"),
+            ok = copy_sub_dir(TargetDir, "priv"),
+            copy_sub_dir(TargetDir, "include");
+
+        {error, Reason} ->
+            ?ABORT("Failed to load app file ~s: ~p\n", [AppFile, Reason])
     end.
 
 
@@ -187,3 +211,32 @@ validate_modules(AppName, Mods) ->
 ebin_modules() ->
     lists:sort([rebar_utils:beam_to_mod("ebin", N) ||
                    N <- rebar_utils:beams("ebin")]).
+
+mk_target_dir(Config, TargetDir) ->
+    case filelib:ensure_dir(filename:join(TargetDir, "dummy")) of
+        ok ->
+            ok;
+        {error, eexist} ->
+            %% Output directory already exists; if force=1, wipe it out
+            case rebar_config:get_global(Config, force, "0") of
+                "1" ->
+                    rebar_file_utils:rm_rf(TargetDir),
+                    ok = file:make_dir(TargetDir);
+                _ ->
+                    ?ERROR("Release target directory ~p already exists!\n",
+                           [TargetDir]),
+                    ?FAIL
+            end;
+        {error, Reason} ->
+            ?ERROR("Failed to make target dir ~p: ~s\n",
+                   [TargetDir, file:format_error(Reason)]),
+            ?FAIL
+    end.
+
+copy_sub_dir(TargetDir, SubDir) ->
+    case filelib:is_dir(SubDir) of
+        true ->
+            rebar_file_utils:cp_r([SubDir], TargetDir);
+        false ->
+            ok
+    end.

@@ -299,6 +299,8 @@ list-deps                            List dependencies
 generate    [dump_spec=0/1]          Build release with reltool
 overlay                              Run reltool overlays only
 
+install     [target=dir]             Install OTP applications
+
 generate-upgrade  previous_release=path  Build an upgrade package
 
 generate-appups   previous_release=path  Generate appup files
@@ -380,8 +382,9 @@ filter_flags(Config, [Item | Rest], Commands) ->
 command_names() ->
     ["check-deps", "clean", "compile", "create", "create-app", "create-node",
      "ct", "delete-deps", "doc", "eunit", "generate", "generate-appups",
-     "generate-upgrade", "get-deps", "help", "list-deps", "list-templates",
-     "qc", "update-deps", "overlay", "shell", "version", "xref"].
+     "generate-upgrade", "get-deps", "help", "install", "list-deps",
+     "list-templates", "qc", "update-deps", "overlay", "shell", "version",
+     "xref"].
 
 unabbreviate_command_names([]) ->
     [];
